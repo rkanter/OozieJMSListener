@@ -13,14 +13,14 @@ Build
 Run
 ---
 ````
-./run.sh <oozie-url> [username]
+./run.sh <oozie-url> [-username <username>] [-jobid <jobId>]
 ```
 
 
 Sample Output
 =============
 ````
-$ ./run.sh http://rkanter-5.ent.cloudera.com:11000/oozie admin
+$ ./run.sh http://rkanter-5.ent.cloudera.com:11000/oozie -username admin
 JNDI Properties
 ===============
 -- listing properties --

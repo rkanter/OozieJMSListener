@@ -30,14 +30,34 @@ public class OozieJMSListener implements MessageListener {
     private static Semaphore printSem = new Semaphore(1);
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 1 && args.length != 2) {
+        if (args.length != 1 && args.length != 3 && args.length != 5) {
             printUsage();
             throw new IllegalAccessException("Invalid arguments");
         }
         String oozieUrl = args[0];
         String user = null;
-        if (args.length == 2) {
-            user = args[1];
+        String jobId = null;
+        if (args.length >= 3) {
+            if (args[1].equals("-username")) {
+                user = args[2];
+            } else if (args[1].equals("-jobid")) {
+                    jobId = args[2];
+            }
+            else {
+                printUsage();
+                throw new IllegalAccessException("Invalid arguments");
+            }
+        }
+        if (args.length == 5) {
+            if (args[3].equals("-username")) {
+                user = args[4];
+            } else if (args[3].equals("-jobid")) {
+                    jobId = args[4];
+            }
+            else {
+                printUsage();
+                throw new IllegalAccessException("Invalid arguments");
+            }
         }
 
         OozieClient oozie = new OozieClient(oozieUrl);
@@ -49,7 +69,7 @@ public class OozieJMSListener implements MessageListener {
         System.out.println();
 
         StringBuilder sbTopics = new StringBuilder();
-        Set<String> topics = getTopics(jmsInfo, user);
+        Set<String> topics = getTopics(jmsInfo, user, jobId);
         for (String t : topics) {
             sbTopics.append("\n\t").append(t);
         }
@@ -89,25 +109,31 @@ public class OozieJMSListener implements MessageListener {
         });
     }
 
-    private static Set<String> getTopics(JMSConnectionInfo jmsInfo, String user) {
+    private static Set<String> getTopics(JMSConnectionInfo jmsInfo, String user, String jobId) {
         Set<String> topics = new HashSet<String>();
         String topicPrefix = jmsInfo.getTopicPrefix();
         String topicPattern = jmsInfo.getTopicPattern(AppType.WORKFLOW_JOB);
-        topics.add(getTopicsHelper(topicPrefix, topicPattern, user));
+        topics.add(getTopicsHelper(topicPrefix, topicPattern, user, jobId));
         topicPattern = jmsInfo.getTopicPattern(AppType.COORDINATOR_JOB);
-        topics.add(getTopicsHelper(topicPrefix, topicPattern, user));
+        topics.add(getTopicsHelper(topicPrefix, topicPattern, user, jobId));
         topicPattern = jmsInfo.getTopicPattern(AppType.BUNDLE_JOB);
-        topics.add(getTopicsHelper(topicPrefix, topicPattern, user));
+        topics.add(getTopicsHelper(topicPrefix, topicPattern, user, jobId));
         return topics;
     }
 
-    private static String getTopicsHelper(String topicPrefix, String topicPattern, String user) {
+    private static String getTopicsHelper(String topicPrefix, String topicPattern, String user, String jobId) {
         String topicName = topicPattern;
         if (topicPattern.equals("${username}")) {
             if (user == null) {
-                throw new IllegalArgumentException("JMS topic is '${username}' so the 'username' argument must be specified");
+                throw new IllegalArgumentException("JMS topic is '${username}' so the '-username' argument must be specified");
             }
             topicName = user;
+        }
+        if (topicPattern.equals("${jobId}")) {
+            if (jobId == null) {
+                throw new IllegalArgumentException("JMS topic is '${jobId}' so the '-jobId' argument must be specified");
+            }
+            topicName = jobId;
         }
         return topicPrefix + topicName;
     }
@@ -163,7 +189,7 @@ public class OozieJMSListener implements MessageListener {
     }
 
     private static void printUsage() {
-        System.out.println("Usage: OozieJMSListener <oozie-url> [username]");
+        System.out.println("Usage: OozieJMSListener <oozie-url> [-username <username>] [-jobid <jobId>]");
         System.out.println();
     }
 }
