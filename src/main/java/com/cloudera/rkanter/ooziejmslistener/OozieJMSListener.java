@@ -81,8 +81,8 @@ public class OozieJMSListener implements MessageListener {
                 }
             }
         });
-        System.out.println("\nListening...");
-        System.out.println("============\n");
+        System.out.println("Listening on topic: " + topic.toString());
+        System.out.println();
     }
 
     public void onMessage(Message message) {
