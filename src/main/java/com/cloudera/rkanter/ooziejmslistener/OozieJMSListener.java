@@ -1,7 +1,10 @@
 package com.cloudera.rkanter.ooziejmslistener;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.Semaphore;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
@@ -23,7 +26,8 @@ import org.apache.oozie.client.event.message.SLAMessage;
 
 public class OozieJMSListener implements MessageListener {
 
-    private Connection connection = null;
+    private String topic;
+    private static Semaphore printSem = new Semaphore(1);
 
     public static void main(String[] args) throws Exception {
         if (args.length != 1 && args.length != 2) {
@@ -35,13 +39,8 @@ public class OozieJMSListener implements MessageListener {
         if (args.length == 2) {
             user = args[1];
         }
-        OozieJMSListener listener = new OozieJMSListener();
-        listener.connect(oozieUrl, user);
-    }
 
-    private void connect(String oozieUrl, String user) throws Exception {
         OozieClient oozie = new OozieClient(oozieUrl);
-
         JMSConnectionInfo jmsInfo = oozie.getJMSConnectionInfo();
         Properties jndiProps = jmsInfo.getJNDIProperties();
         System.out.println("JNDI Properties");
@@ -49,26 +48,33 @@ public class OozieJMSListener implements MessageListener {
         jndiProps.list(System.out);
         System.out.println();
 
+        StringBuilder sbTopics = new StringBuilder();
+        Set<String> topics = getTopics(jmsInfo, user);
+        for (String t : topics) {
+            sbTopics.append("\n\t").append(t);
+        }
+        System.out.println("Listening on topics: " + sbTopics.toString());
+        System.out.println();
+        for (String t : topics) {
+            OozieJMSListener oListener = new OozieJMSListener(t);
+            oListener.connect(jndiProps);
+        }
+    }
+
+    private OozieJMSListener(String topic) {
+        this.topic = topic;
+    }
+
+    private void connect(Properties jndiProps) throws Exception {
         Context jndiContext = new InitialContext(jndiProps);
         String connectionFactoryName = (String) jndiContext.getEnvironment().get("connectionFactoryNames");
         ConnectionFactory connectionFactory = (ConnectionFactory)jndiContext.lookup(connectionFactoryName);
-        connection = connectionFactory.createConnection();
-        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        String topicPrefix = jmsInfo.getTopicPrefix();
-        String topicPattern = jmsInfo.getTopicPattern(AppType.WORKFLOW_JOB);
-        // Following code checks if the topic pattern is
-        //'username', then the topic name is set to the actual user submitting the job
-        String topicName = null;
-        if (topicPattern.equals("${username}")) {
-            if (user == null) {
-                throw new IllegalArgumentException("JMS topic is '${username}' so the 'username' argument must be specified");
-            }
-            topicName = user;
-        }
-        Destination topic = session.createTopic(topicPrefix+topicName);
-        MessageConsumer consumer = session.createConsumer(topic);
-        consumer.setMessageListener(this);
+        final Connection connection = connectionFactory.createConnection();
         connection.start();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        Destination topicD = session.createTopic(topic);
+        MessageConsumer consumer = session.createConsumer(topicD);
+        consumer.setMessageListener(this);
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
@@ -81,15 +87,38 @@ public class OozieJMSListener implements MessageListener {
                 }
             }
         });
-        System.out.println("Listening on topic: " + topic.toString());
-        System.out.println();
+    }
+
+    private static Set<String> getTopics(JMSConnectionInfo jmsInfo, String user) {
+        Set<String> topics = new HashSet<String>();
+        String topicPrefix = jmsInfo.getTopicPrefix();
+        String topicPattern = jmsInfo.getTopicPattern(AppType.WORKFLOW_JOB);
+        topics.add(getTopicsHelper(topicPrefix, topicPattern, user));
+        topicPattern = jmsInfo.getTopicPattern(AppType.COORDINATOR_JOB);
+        topics.add(getTopicsHelper(topicPrefix, topicPattern, user));
+        topicPattern = jmsInfo.getTopicPattern(AppType.BUNDLE_JOB);
+        topics.add(getTopicsHelper(topicPrefix, topicPattern, user));
+        return topics;
+    }
+
+    private static String getTopicsHelper(String topicPrefix, String topicPattern, String user) {
+        String topicName = topicPattern;
+        if (topicPattern.equals("${username}")) {
+            if (user == null) {
+                throw new IllegalArgumentException("JMS topic is '${username}' so the 'username' argument must be specified");
+            }
+            topicName = user;
+        }
+        return topicPrefix + topicName;
     }
 
     public void onMessage(Message message) {
         try {
+            printSem.acquire();
             if (message.getStringProperty(JMSHeaderConstants.MESSAGE_TYPE).equals(MessageType.SLA.name())) {
                 SLAMessage slaMessage = JMSMessagingUtils.getEventMessage(message);
                 System.out.println("=== SLA Message ===");
+                System.out.println("JMSTopic            : " + topic);
                 System.out.println("JMSTimestamp        : " + new Date(message.getJMSTimestamp()));
                 System.out.println("JMSMessageID        : " + message.getJMSMessageID());
                 System.out.println("appType             : " + slaMessage.getAppType());
@@ -113,6 +142,7 @@ public class OozieJMSListener implements MessageListener {
             else {
                 JobMessage jobMessage = JMSMessagingUtils.getEventMessage(message);
                 System.out.println("=== Job Message ===");
+                System.out.println("JMSTopic            : " + topic);
                 System.out.println("JMSTimestamp        : " + new Date(message.getJMSTimestamp()));
                 System.out.println("JMSMessageID        : " + message.getJMSMessageID());
                 System.out.println("appType             : " + jobMessage.getAppType());
@@ -127,6 +157,8 @@ public class OozieJMSListener implements MessageListener {
            }
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            printSem.release();
         }
     }
 
