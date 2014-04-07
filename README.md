@@ -47,4 +47,27 @@ appName             : MapReduce
 user                : admin
 
 ...
+
+=== SLA Message ===
+JMSTopic            : admin
+JMSTimestamp        : Mon Apr 07 15:52:43 PDT 2014
+JMSMessageID        : ID:rkanter-5.ent.cloudera.com-52410-1396574282684-1:1:8:18:1
+appType             : WORKFLOW_JOB
+id                  : 0000012-140403181356152-oozie-oozi-W
+parentId            : null
+nominalTime         : Wed Apr 02 23:00:00 PDT 2014
+expectedStartTime   : Wed Apr 02 23:10:00 PDT 2014
+actualStartTime     : Mon Apr 07 15:51:07 PDT 2014
+expectedEndTime     : Wed Apr 02 23:30:00 PDT 2014
+actualEndTime       : Mon Apr 07 15:52:16 PDT 2014
+expectedDuration    : 1800000
+actualDuration      : 69218
+notificationMessage : woot
+upstreamApps        : blah
+user                : admin
+appName             : MapReduce-SLA
+eventStatus         : DURATION_MET
+slaStatus           : MISS
+
+...
 ````
