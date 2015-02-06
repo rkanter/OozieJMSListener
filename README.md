@@ -7,7 +7,7 @@ It is based on: http://archive.cloudera.com/cdh5/cdh/5/oozie/DG_JMSNotifications
 Build
 -----
 ````
-./build.sh
+./build.sh [-Doozie.version=<version>]
 ````
 
 Run
