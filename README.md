@@ -7,8 +7,13 @@ It is based on: http://archive.cloudera.com/cdh5/cdh/5/oozie/DG_JMSNotifications
 Build
 -----
 ````
-./build.sh [-Doozie.version=<version>]
+./build.sh [-Doozie.version=<version>] [passthrough-maven-opts]
 ````
+
+The ``oozie.version`` can be any Oozie version (CDH or Apache).  It defaults to CDH 5.9.0.
+
+While that's required for compiling, it should probably work with any version of Oozie.
+
 
 Run
 ---
