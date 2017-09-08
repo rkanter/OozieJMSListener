@@ -12,7 +12,7 @@ Build
 
 The ``oozie.version`` can be any Oozie version (CDH or Apache).  It defaults to CDH 5.9.0.
 
-While that's required for compiling, it should probably work with any version of Oozie.
+While a specific version is required for compiling, it should be able to connect to any version of Oozie that supports JMS Notifications.
 
 
 Run
