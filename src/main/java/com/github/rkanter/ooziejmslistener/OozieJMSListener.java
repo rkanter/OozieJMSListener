@@ -4,7 +4,8 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
@@ -27,7 +28,7 @@ import org.apache.oozie.client.event.message.SLAMessage;
 public class OozieJMSListener implements MessageListener {
 
     private String topic;
-    private static Semaphore printSem = new Semaphore(1);
+    private static Lock printLock = new ReentrantLock();
 
     public static void main(String[] args) throws Exception {
         if (args.length != 1 && args.length != 3 && args.length != 5) {
@@ -139,8 +140,8 @@ public class OozieJMSListener implements MessageListener {
     }
 
     public void onMessage(Message message) {
+        printLock.lock();
         try {
-            printSem.acquire();
             if (message.getStringProperty(JMSHeaderConstants.MESSAGE_TYPE).equals(MessageType.SLA.name())) {
                 SLAMessage slaMessage = JMSMessagingUtils.getEventMessage(message);
                 System.out.println("=== SLA Message ===");
@@ -184,7 +185,7 @@ public class OozieJMSListener implements MessageListener {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            printSem.release();
+            printLock.unlock();
         }
     }
 
