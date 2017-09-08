@@ -1,4 +1,4 @@
-package com.cloudera.rkanter.ooziejmslistener;
+package com.github.rkanter.ooziejmslistener;
 
 import java.util.Date;
 import java.util.HashSet;
